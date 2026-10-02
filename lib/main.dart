@@ -1,22 +1,34 @@
+import 'dart:typed_data';
 import 'dart:ui';
 
-import 'package:tomesdashboard/dashboard_page.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:tabbed_view/tabbed_view.dart';
-import 'package:tomesdashboard/screens/main/main_screen.dart';
-import 'package:universal_io/io.dart';
+import 'package:tomesdashboard/screens/dloganalyzer/dlog_decoder/dlog_home_page.dart';
+import 'package:tomesdashboard/screens/dloganalyzer/grapic_page.dart';
+import 'package:tomesdashboard/screens/tomes/main_screen.dart';
+import 'package:tomesdashboard/app_preferences.dart';
+//import 'package:universal_io/io.dart';
 // ignore: depend_on_referenced_packages
 
-void main() {
-  runApp(MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final savedThemeMode = await AppPreferences.getThemeMode();
+
+  runApp(MyApp(initialThemeMode: savedThemeMode));
 }
 
 final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 class MyApp extends StatelessWidget {
-  MyApp({super.key});
-  final ValueNotifier<ThemeMode> _notifier = ValueNotifier(ThemeMode.system);
+  MyApp({
+    super.key,
+    required ThemeMode initialThemeMode,
+  }) : _notifier = ValueNotifier<ThemeMode>(initialThemeMode);
+
+  final ValueNotifier<ThemeMode> _notifier;
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
@@ -24,15 +36,14 @@ class MyApp extends StatelessWidget {
       valueListenable: _notifier,
       builder: (_, mode, _) {
         return MaterialApp(
-          title: 'Tomes Easy Data',
+          title: 'Terumo Tool Set',
           scrollBehavior: MyCustomScrollBehavior(),
-
           scaffoldMessengerKey: _scaffoldMessengerKey,
           debugShowCheckedModeBanner: false,
-          darkTheme: ThemeData.dark().copyWith(primaryColor: const Color.fromARGB(255, 174, 255, 127)),
+          darkTheme: ThemeData.dark().copyWith(primaryColor: const Color.fromARGB(255, 79, 203, 7) ),
           themeMode: mode,
-          theme: ThemeData.light().copyWith(primaryColor: const Color.fromARGB(255, 95, 167, 53)),
-          home: MyHomePage(title: 'Tomes Easy Data', notifier: _notifier),
+          theme: ThemeData.light().copyWith(primaryColor: const Color.fromARGB(255, 51, 114, 14)),
+          home: MyHomePage(title: 'Terumo Tool Set', notifier: _notifier),
         );
       },
     );
@@ -59,7 +70,6 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  List<File> files = [];
   final GlobalKey<ScaffoldMessengerState> _sk = GlobalKey<ScaffoldMessengerState>();
 
   late TabbedViewController _controller;
@@ -80,88 +90,64 @@ class _MyHomePageState extends State<MyHomePage> {
       text: 'INIT',
       leading: (context, status) => Icon(Icons.star, size: 16),
       content: Padding(
-        padding: EdgeInsets.all(8),
-        child: Row(
+        padding: EdgeInsets.all(28),
+        child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Stack(
-              alignment: AlignmentGeometry.bottomCenter,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Container(
-                  width: 350,
-                  height: 350 * 1.3,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                    image: DecorationImage(fit: BoxFit.cover, image: AssetImage("assets/images/img1.jpg")),
+                Flexible(
+                  flex: 65,
+                  child: Text("With the dLogs analysis tool, you can upload a CSV file obtained via the STS RAT, plot the signals of your choice, and zoom in or pan the graphs in any direction. You can also review the event log and locate the exact moment you are looking for.",
+                  style: TextStyle(fontSize: 22),
                   ),
                 ),
-                Container(
-                  width: 350,
-                  height: 100,
-                  decoration: BoxDecoration(color: const Color.fromARGB(255, 73, 73, 73), 
-                  borderRadius: BorderRadius.only (bottomLeft:  Radius.circular(12),bottomRight:  Radius.circular(12)),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text("Ability to graph multiple variables and analyze the exact moment of each alarm. Selection of detailed areas for visualizing specific events.", 
-                      style: TextStyle(color: const Color.fromARGB(255, 223, 222, 222)),
-                    overflow: TextOverflow.clip),
+                SizedBox(width: 30,),
+                Flexible(
+                  flex: 35,
+                   child: Container(
+                    width: 150,
+                    height: 220,
+                    decoration: BoxDecoration(  
+                      image: DecorationImage(image:  AssetImage("assets/images/img1.jpg",),fit: BoxFit.cover)  ,
+                      //color: Theme.of(context).splashColor,
+                    borderRadius: BorderRadius.only (bottomLeft:  Radius.circular(12),bottomRight:  Radius.circular(12)),
+                    ),
                   ),
                 ),
+           
+
               ],
             ),
-            Stack(
-              alignment: AlignmentGeometry.bottomCenter,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Container(
-                  width: 350,
-                  height: 350 * 1.3,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                    image: DecorationImage(fit: BoxFit.cover, image: AssetImage("assets/images/img2.jpg")),
+                Flexible(
+                  flex: 35,
+                   child: Container(
+                    width: 150,
+                    height: 220,
+                    decoration: BoxDecoration(  
+                      image: DecorationImage(image:  AssetImage("assets/images/img2.jpg",),fit: BoxFit.cover)  ,
+                      //color: Theme.of(context).splashColor,
+                    borderRadius: BorderRadius.only (bottomLeft:  Radius.circular(12),bottomRight:  Radius.circular(12)),
+                    ),
                   ),
                 ),
-                Container(
-                  width: 350,
-                  height: 100,
-                  decoration: BoxDecoration(color: const Color.fromARGB(255, 73, 73, 73), 
-                  borderRadius: BorderRadius.only (bottomLeft:  Radius.circular(12),bottomRight:  Radius.circular(12)),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text("Zoom and Pan functions along with the ability to easily select or deselect parameters.", 
-                      style: TextStyle(color: const Color.fromARGB(255, 223, 222, 222)),
-                    overflow: TextOverflow.clip),
+              SizedBox(width: 30,),
+               Flexible(
+                  flex: 65,
+                  child: Text("Using the time analysis tool, you can upload a block of data logs directly and determine the incidence of failures—both in terms of quality and quantity—thereby formulating the best action plan for each piece of equipment studied.",
+                  style: TextStyle(fontSize: 22),
                   ),
                 ),
+            
+
               ],
-            ),
-            Stack(
-              alignment: AlignmentGeometry.bottomCenter,
-              children: [
-                Container(
-                  width: 350,
-                  height: 350 * 1.3,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                    image: DecorationImage(fit: BoxFit.cover, image: AssetImage("assets/images/img3.jpg")),
-                  ),
-                ),
-                Container(
-                  width: 350,
-                  height: 100,
-                  decoration: BoxDecoration(color: const Color.fromARGB(255, 73, 73, 73), 
-                  borderRadius: BorderRadius.only (bottomLeft:  Radius.circular(12),bottomRight:  Radius.circular(12)),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text("Detailed analysis of episodic events for easier fault detection.", 
-                      style: TextStyle(color: const Color.fromARGB(255, 223, 222, 222)),
-                    overflow: TextOverflow.clip),
-                  ),
-                ),
-              ],
-            ),
+            )
+
           ],
         ),
       ),
@@ -215,7 +201,24 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     return theme;
   }
-
+  void addAnalyzePage(
+    String? path,
+    String fileName,
+    Uint8List? bytes,
+  ) {
+    _controller.addTab(
+      TabData(
+        text: fileName,
+        content: _DeferredGraphicPage(
+          filePath: path,
+          fileName: fileName,
+          fileBytes: bytes,
+        ),
+        keepAlive: true,
+      ),
+    );
+    _controller.selectTab(_controller.tabs.last);
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -237,12 +240,14 @@ class _MyHomePageState extends State<MyHomePage> {
           IconButton(
             onPressed: () {
               setState(() {
-                if (Theme.of(context).brightness  == Brightness.light) {
+                if (Theme.of(context).brightness == Brightness.light) {
                   _brightness = Brightness.dark;
                   widget.notifier.value = ThemeMode.dark;
+                  AppPreferences.setThemeMode(ThemeMode.dark);
                 } else {
                   _brightness = Brightness.light;
                   widget.notifier.value = ThemeMode.light;
+                  AppPreferences.setThemeMode(ThemeMode.light);
                 }
               });
             },
@@ -263,41 +268,80 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: Theme.of(context).primaryColor,
+        tooltip: 'Add file',
         onPressed: () async {
-          FilePickerResult? result = await FilePicker.pickFiles(
+          final result = await FilePicker.pickFiles(
             type: FileType.custom,
-            allowedExtensions: ['csv'],
+            allowedExtensions: ['dlog', 'csv'],
             withData: true,
             allowMultiple: true,
           );
+          if (result == null || result.files.isEmpty) return;
 
-          if (result != null) {
-            for (var pickFile in result.files) {
-              
-            File file ;
-            if (Platform.isWindows) {
-               file = File(pickFile.path!);
-            }else{
-               file = File(pickFile.name);
-           
-            }
-            files.add(file);
+          final dlogFiles = result.files
+              .where((f) => f.extension?.toLowerCase() == 'dlog')
+              .toList();
+          final csvFiles = result.files
+              .where((f) => f.extension?.toLowerCase() == 'csv')
+              .toList();
 
+          if (dlogFiles.length == 1) {
+            final file = dlogFiles.first;
+            addAnalyzePage(file.path, file.name, file.bytes);
+          } else if (dlogFiles.length > 1) {
+            final dlogResult = FilePickerResult(dlogFiles);
             _controller.addTab(
               TabData(
-                text: pickFile.name,
-                content:MainScreen(file: pickFile, title: ''),
+                text: dlogFiles.first.name.split('_').first,
+                content: DlogHomePage(
+                  files: dlogResult,
+                  onAnalyzeRequest: addAnalyzePage,
+                ),
                 keepAlive: true,
               ),
             );
-            _controller.tabs.first.text == "INIT" ? _controller.removeTab(0) : null;
-           }
-           
+            _controller.selectTab(_controller.tabs.last);
           }
-          // _controller = TabbedViewController(tabs, onTabReorder: (int oldIndex, int newIndex) {}, onTabSelection: (index, tabData) {}, onTabRemove: (tabData) {});
-          //   setState(() {});
+
+          // CSV conserva el comportamiento anterior.
+          for (final pickFile in csvFiles) {
+            final name = pickFile.name;
+            if (name.contains('1W') ||
+                name.contains('1P') ||
+                name.contains('1T')) {
+              _controller.addTab(
+                TabData(
+                  text: pickFile.name,
+                  content: _DeferredGraphicPage(
+                    filePath: pickFile.path,
+                    fileName: pickFile.name,
+                    fileBytes: pickFile.bytes,
+                  ),
+                  keepAlive: true,
+                ),
+              );
+              _controller.selectTab(_controller.tabs.last);
+            } else {
+              _controller.addTab(
+                TabData(
+                  text: pickFile.name,
+                  content: MainScreen(
+                    file: pickFile,
+                    title: 'Tomes Easy Data',
+                  ),
+                  keepAlive: true,
+                ),
+              );
+              _controller.selectTab(_controller.tabs.last);
+            }
+          }
+
+          if (_controller.tabs.isNotEmpty &&
+              _controller.tabs.first.text == 'INIT') {
+            _controller.removeTab(0);
+          }
         },
-        tooltip: 'Add File',
         child: const Icon(Icons.add),
       ),
     );
@@ -331,9 +375,9 @@ class _MyHomePageState extends State<MyHomePage> {
               ];
             }
           : null,
-      // onDraggableBuild: (controller, tabIndex, tab) {
-      //   return DraggableConfig(canDrag: true, feedback: null, feedbackOffset: Offset.zero, dragAnchorStrategy: childDragAnchorStrategy, onDragStarted: null, onDragUpdate: null, onDraggableCanceled: null, onDragEnd: null, onDragCompleted: null);
-      // },
+       onDraggableBuild: (controller, tabIndex, tab) {
+         return DraggableConfig(canDrag: true, feedback: null, feedbackOffset: Offset.zero, dragAnchorStrategy: childDragAnchorStrategy, onDragStarted: null, onDragUpdate: null, onDraggableCanceled: null, onDragEnd: null, onDragCompleted: null);
+      },
       tabRemoveInterceptor: (context, index, tabData) {
         if (tabData.text == 'Tab 1') {
           return false;
@@ -353,6 +397,104 @@ class _MyHomePageState extends State<MyHomePage> {
 
   
   
+}
+
+
+class _DeferredGraphicPage extends StatefulWidget {
+  const _DeferredGraphicPage({
+    required this.filePath,
+    required this.fileName,
+    required this.fileBytes,
+  });
+
+  final String? filePath;
+  final String fileName;
+  final Uint8List? fileBytes;
+
+  @override
+  State<_DeferredGraphicPage> createState() => _DeferredGraphicPageState();
+}
+
+class _DeferredGraphicPageState extends State<_DeferredGraphicPage> {
+  bool _showGraphic = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _openAfterFirstPaint();
+  }
+
+  Future<void> _openAfterFirstPaint() async {
+    // First show the selected tab and its loading UI.
+    await WidgetsBinding.instance.endOfFrame;
+
+    // Give the tab view one additional frame before GraphicPage starts
+    // parsing/decoding the selected file.
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+
+    if (!mounted) return;
+    setState(() => _showGraphic = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_showGraphic) {
+      return GraphicPage(
+        filePath: widget.filePath,
+        fileName: widget.fileName,
+        fileBytes: widget.fileBytes,
+        title: 'Dlog Analyzer',
+      );
+    }
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 28,
+              vertical: 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 34,
+                  height: 34,
+                  child: CircularProgressIndicator(strokeWidth: 3),
+                ),
+                const SizedBox(height: 18),
+                const Text(
+                  'Opening DLOG…',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.fileName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Preparing Graphic Page',
+                  style: TextStyle(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class PositionChooser extends StatelessWidget {

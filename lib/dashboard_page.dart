@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:percent_indicator/circular_percent_indicator.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:csv/csv.dart';
 import 'package:csv/csv_settings_autodetection.dart';
@@ -9,16 +9,30 @@ import 'package:file_picker/file_picker.dart';
 //import 'package:material_charts/material_charts.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:tomesdashboard/indices.dart';
-import 'package:tomesdashboard/models/my_files.dart';
+import 'package:tomesdashboard/models/alarm.dart';
 import 'package:tomesdashboard/responsive.dart';
-import 'package:tomesdashboard/screens/dashboard/components/chart_mensual.dart';
-import 'package:tomesdashboard/screens/dashboard/components/value_info_widget.dart';
-import 'package:tomesdashboard/screens/dashboard/components/componentes.dart';
-import 'package:tomesdashboard/screens/dashboard/components/storage_details.dart';
+import 'package:tomesdashboard/screens/tomes/components/bordered_container.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/alarmas/alarm_chart_widget.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/alarmas/alarm_pie_widget.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/alerts/alert_chart_widget.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/alerts/alert_pie_widget.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/customchart/custom_chart.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/dashboard/chart_mensual.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/dashboard/runs_bags.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/header/header.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/componentes/tendency_widget.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/dashboard/value_info_widget.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/componentes/componentes.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/protocols/protocols_distibution.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/protocols/protocols_vs_comp_widget.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/usuarios/users_vs_comp_widget.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/usuarios/users_distibution.dart';
+import 'package:tomesdashboard/screens/tomes/subsscreens/usuarios/users_table.dart';
 
 class DashBoardPage extends StatefulWidget {
+  final int option;
   final PlatformFile file;
-  const DashBoardPage({super.key, required this.title, required this.file});
+  const DashBoardPage({super.key, required this.title, required this.file,required this.option});
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -42,14 +56,17 @@ class _DashBoardPageState extends State<DashBoardPage> {
   int indexCodigoDeOperadorIndex = 0;
   int indexNombreDeProtocoloIndex = 0;
   int indexCodigoDeDonacionIndex = 0;
-  int indexNombreAbreviadoIndex = 0;
-  int indexNumeroDeSerieIndex = 0;
+  int indexNombreAbreviadoIndex = -1;
+  int indexNumeroDeSerieIndex = -1;
   int indexVolumenDeLeucocitosIndex = 0;
   int indexVolumenDePlaquetasIndex = 0;
   int indexVolumenDePlasmaIndex = 0;
   int indexIndiceDeRendimientoDePlaquetasIndex = 0;
   int indexHoraDeInicioDelProcesamientoIndex = 0;
   int indexHoraDeInicioDelProcesoIndex = 0;
+  int indexContadoDeAlarmas = 0;
+  int indexContadoDeAlertas = 0;
+  int indexDuracionDelProcedimineto = 0;
 
   List<String> protocolos = [];
   List<String> operadores = [];
@@ -69,7 +86,6 @@ class _DashBoardPageState extends State<DashBoardPage> {
   List<Corrida> corridas = [];
   List<Corrida> corridasToTrace = [];
   String selectedEquipo="Todos";
-
   // Define the initial viewport
   double minX = 0;
   double maxX = 20; // Show 20 data points initially
@@ -80,12 +96,13 @@ class _DashBoardPageState extends State<DashBoardPage> {
   List<List<dynamic>> values = [];
   List<String> timeLineSeries = [];
   bool isLoading = true;
+  bool isError = false;
+  String errorMsg="";
+  String alertMsg="";
   List<CartesianSeries> cartesianSeries = [];
   List<String> episodios = [];
   List<CartesianChartAnnotation> verticalRangeAnnotations = [];
   List<CartesianChartAnnotation> otherAnotation = [];
-  int procedimientosTotal=0;
-  final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
   late ZoomPanBehavior zoom;
   List<String> machineData = [];
   bool isEpisodic = false;
@@ -112,81 +129,176 @@ class _DashBoardPageState extends State<DashBoardPage> {
     final input = Stream.value(i);
     // file.openRead();
     var d = FirstOccurrenceSettingsDetector(eols: ['\r\n', '\n'], textDelimiters: ['"', "'"], fieldDelimiters: [',', ';', '\t']);
-    input.transform(utf8.decoder).transform(CsvToListConverter(csvSettingsDetector: d, shouldParseNumbers: true)).toList().then((fields) {
+    
+  
+   input.transform(utf8.decoder).transform(CsvToListConverter(csvSettingsDetector: d, shouldParseNumbers: true)).toList()
+    .onError<FormatException>((error, stackTrace) {
+    // Specifically catch CSV formatting and parsing errors
+      if (kDebugMode) {
+        print('Format error during CSV conversion: $error');
+      }
+         setState(() {
+      isError=true;
+      errorMsg="$error\n\r$stackTrace";
+    });
+    return []; // Return a fallback empty list
+    }).onError((error, stackTrace) {
+      // Catch all other types of errors (e.g., File I/O or Network errors)
+      if (kDebugMode) {
+        print('General error: $error');
+      }
+      setState(() {
+      isError=true;
+      errorMsg="$error\n\r$stackTrace";
+    });
 
-      {
+      return [];
+    })
+    .then((fields)async  {
+
+   try{
+    errorMsg="";
+    alertMsg="";
       var matches=fields[0].where((item)=>columnaCodigoDeOperador.contains(item.toLowerCase().toString())).toList();
-      indexCodigoDeOperadorIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
-      
+      if(matches.isEmpty){
+        errorMsg="${errorMsg}Falta la columna CodigoDeOperador ";
+      }else{
+        indexCodigoDeOperadorIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      }
       matches=fields[0].where((item)=>columnaNombreDeProtocolo.contains(item.toLowerCase().toString())).toList();
-      indexNombreDeProtocoloIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
-      
+      if(matches.isEmpty){
+        errorMsg="${errorMsg}Falta la columna NombreDeProtocolo ";
+      }else{
+        indexNombreDeProtocoloIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      }
       matches=fields[0].where((item)=>columnaCodigoDeDonacion.contains(item.toLowerCase().toString())).toList();
-      indexCodigoDeDonacionIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
-      
+      if(matches.isEmpty){
+        errorMsg="${errorMsg}Falta la columna CodigoDeDonacion ";
+      }else{
+        indexCodigoDeDonacionIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      } 
       matches=fields[0].where((item)=>columnaNombreAbreviado.contains(item.toLowerCase().toString())).toList();
-      indexNombreAbreviadoIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
-      
+      if(matches.isEmpty){
+        alertMsg="${errorMsg}Falta la columna NombreAbreviado ";
+      }else{
+        indexNombreAbreviadoIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      }
       matches=fields[0].where((item)=>columnaNumeroDeSerie.contains(item.toLowerCase().toString())).toList();
-      indexNumeroDeSerieIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
-      
+      if(matches.isEmpty){
+        alertMsg="${errorMsg}Falta la columna NumeroDeSerie ";
+      }else{
+        indexNumeroDeSerieIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      }
       matches=fields[0].where((item)=>columnaVolumenDeLeucocitos.contains(item.toLowerCase().toString())).toList();
-      indexVolumenDeLeucocitosIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
-      
+      if(matches.isEmpty){
+        errorMsg="${errorMsg}Falta la columna VolumenDeLeucocitos ";
+      }else{
+        indexVolumenDeLeucocitosIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      }
       matches=fields[0].where((item)=>columnaVolumenDePlaquetas.contains(item.toLowerCase().toString())).toList();
-      indexVolumenDePlaquetasIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
-      
+      if(matches.isEmpty){
+        errorMsg="${errorMsg}Falta la columna VolumenDePlaqueta ";
+      }else{
+        indexVolumenDePlaquetasIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      }
       matches=fields[0].where((item)=>columnaVolumenDePlasma.contains(item.toLowerCase().toString())).toList();
-      indexVolumenDePlasmaIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
-      
+      if(matches.isEmpty){
+        errorMsg="${errorMsg}Falta la columna VolumenDePlasma ";
+      }else{
+        indexVolumenDePlasmaIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      }
       matches=fields[0].where((item)=>columnaIndiceDeRendimientoDePlaquetas.contains(item.toLowerCase().toString())).toList();
-      indexIndiceDeRendimientoDePlaquetasIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
-      
+      if(matches.isEmpty){
+        errorMsg="${errorMsg}Falta la columna IndiceDeRendimientoDePlaquetas ";
+      }else{
+        indexIndiceDeRendimientoDePlaquetasIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      }
       matches=fields[0].where((item)=>columnaHoraDeInicioDelProcesamiento.contains(item.toLowerCase().toString())).toList();
-      indexHoraDeInicioDelProcesamientoIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      if(matches.isEmpty){
+        errorMsg="${errorMsg}Falta la columna HoraDeInicioDelProcesamiento ";
+      }else{
+        indexHoraDeInicioDelProcesamientoIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      }
+      matches=fields[0].where((item)=>columnaContadorDeAlarmas.contains(item.toLowerCase().toString())).toList();
+      if(matches.isEmpty){
+        errorMsg="${errorMsg}Falta la columna ContadorDeAlarmas ";
+      }else{
+        indexContadoDeAlarmas=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      }
+      matches=fields[0].where((item)=>columnaContadorDeAlertas.contains(item.toLowerCase().toString())).toList();
+      if(matches.isEmpty){
+        errorMsg="${errorMsg}Falta la columna ContadorDeAlertas ";
+      }else{
+        indexContadoDeAlertas=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      }
+      matches=fields[0].where((item)=>columnaDuracionDelProcedimineto.contains(item.toLowerCase().toString())).toList();
+      if(matches.isEmpty){
+        errorMsg="${errorMsg}Falta la columna DuracionDelProcedimineto ";
+      }else{
+        indexDuracionDelProcedimineto=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+      }
       //TODO: Cambiar a columnaHoraDeInicioDelProceso cuando se pueda
      // matches=fields[0].where((item)=>columnaHoraDeInicioDelProceso.contains(item.toString())).toList();
       
     //  indexHoraDeInicioDelProcesoIndex=fields[0].indexWhere((element) => element.toString().toLowerCase() == matches[0].toString().toLowerCase());
+  
+      if(errorMsg.isNotEmpty){
+        setState(() {
+          isError=true;
+        });
+        return;
       }
+      if(alertMsg.isNotEmpty){
+        showDialog(context: (context), builder: (context)=>
+        AlertDialog.adaptive(
+          title: Text("Atencion!!"),
+          content: Text("Faltan las columnas $alertMsg",maxLines: 6,),
+          )
+        );
+      }
+      String s= indexNombreAbreviadoIndex !=-1 ? fields[1][indexNombreAbreviadoIndex].toString():"";
+      String idInicial= fields[1][indexHoraDeInicioDelProcesamientoIndex].toString().trim().replaceAll("/","").replaceAll(":", "").replaceAll(" ", "").toString()+s;
 
-      String idInicial= fields[1][indexHoraDeInicioDelProcesamientoIndex].toString().trim().replaceAll("/","").replaceAll(":", "").replaceAll(" ", "").toString()
-      +fields[1][indexNombreAbreviadoIndex].toString();//_${DateTime.parse(parseTime(fields[1][indexHoraDeInicioDelProcesoIndex].toString())).millisecondsSinceEpoch}";
-//      fields.removeAt(0);
-      List<Bolsa> bolsas = List.generate(10,(_)=>Bolsa());
+      List<Bolsa> bolsas = [];
       int bolsaIndex=-1;      
       Corrida localCorrida=Corrida(
           year: 0,
             month: 0,
             day: 0,
             fecha: "",
+            duracionDelProcedimiento: 0,
             key: Key(idInicial.toString()), id: idInicial.toString(), codigoDeOperador: "", nombreDeProtocolo: "", codigoDeDonacion: "", nombreAbreviado: "", 
       numeroDeSerie: "", volumenDeLeucocitos: 0, volumenDePlaquetas: 0, volumenDePlasma: 0, indiceDeRendimientoDePlaquetas: 0, bolsas: []);
-      int ptr=0;
+      List<AlarmAlert> alertas = [];
+      List<AlarmAlert> alarmas = [];
       for (int fieldIndex = 1; fieldIndex < fields.length; fieldIndex++) {
         var element = fields[fieldIndex];
-        String actualId= element[indexHoraDeInicioDelProcesamientoIndex].toString().trim().replaceAll("/","").replaceAll(":", "").replaceAll(" ", "")
-        +element[indexNombreAbreviadoIndex].toString();
-          if(actualId!=idInicial){
+        String s= indexNombreAbreviadoIndex !=-1 ? fields[fieldIndex][indexNombreAbreviadoIndex].toString():"";
+        String actualId= fields[fieldIndex][indexHoraDeInicioDelProcesamientoIndex].toString().trim().replaceAll("/","").replaceAll(":", "").replaceAll(" ", "").toString()+s;
+        if(actualId!=idInicial){
             if(bolsaIndex>3){
               for (var i = fieldIndex-(bolsaIndex+1); i < fieldIndex; i++) {
-                print ("$fieldIndex  ${fields[i]}");
+                if (kDebugMode) {
+                  print ("$fieldIndex  ${fields[i]}");
+                }
               }
             }
             corridas.add(localCorrida);
+            alertas.clear();
+            alarmas.clear();
+            bolsas.clear();
+           
+           
             localCorrida=Corrida(key: 
-            
             Key(idInicial.toString()), 
             fecha: "",
             year: 0,
             month: 0,
-
+            duracionDelProcedimiento: 0,
             day: 0,
             id: idInicial.toString(), codigoDeOperador: "", nombreDeProtocolo: "", codigoDeDonacion: "", nombreAbreviado: "", 
             numeroDeSerie: "", volumenDeLeucocitos: 0, volumenDePlaquetas: 0, volumenDePlasma: 0, 
             indiceDeRendimientoDePlaquetas: 0, bolsas: List.generate(10,(_)=>Bolsa()));
-            ptr++;
-
             bolsaIndex=0;
             idInicial=actualId;
           }else{
@@ -196,32 +308,57 @@ class _DashBoardPageState extends State<DashBoardPage> {
           if (!protocolos.contains(element[indexNombreDeProtocoloIndex].toString()) && element[indexNombreDeProtocoloIndex].toString().isNotEmpty) {
             protocolos.add(element[indexNombreDeProtocoloIndex].toString());
           }
-          if (!operadores.contains(element[indexCodigoDeOperadorIndex].toString()) && element[indexCodigoDeOperadorIndex].toString().isNotEmpty) {
-            operadores.add(element[indexCodigoDeOperadorIndex].toString());
+          if(element[indexCodigoDeOperadorIndex].toString().isEmpty){
+            element[indexCodigoDeOperadorIndex]="No Especificado";
+          }
+          if (!operadores.contains(element[indexCodigoDeOperadorIndex].toString())) {
+              operadores.add(element[indexCodigoDeOperadorIndex].toString());
+            
           }
           if (!donaciones.contains(element[indexCodigoDeDonacionIndex].toString()) && element[indexCodigoDeDonacionIndex].toString().isNotEmpty) {
             donaciones.add(element[indexCodigoDeDonacionIndex].toString());
           }
-          if (!nombresAbreviados.contains(element[indexNombreAbreviadoIndex].toString()) && element[indexNombreAbreviadoIndex].toString().isNotEmpty) {
-            nombresAbreviados.add(element[indexNombreAbreviadoIndex].toString());
+          if(indexNombreAbreviadoIndex!=-1){
+            if (!nombresAbreviados.contains(element[indexNombreAbreviadoIndex].toString()) && element[indexNombreAbreviadoIndex].toString().isNotEmpty) {
+              nombresAbreviados.add(element[indexNombreAbreviadoIndex].toString());
+            }
           }
-          if (!numerosDeSerie.contains(element[indexNumeroDeSerieIndex].toString()) && element[indexNumeroDeSerieIndex].toString().isNotEmpty) {
-            numerosDeSerie.add(element[indexNumeroDeSerieIndex].toString());
+          if(indexNumeroDeSerieIndex!=-1){
+            if (!numerosDeSerie.contains(element[indexNumeroDeSerieIndex].toString()) && element[indexNumeroDeSerieIndex].toString().isNotEmpty) {
+              numerosDeSerie.add(element[indexNumeroDeSerieIndex].toString());
+            }
           }
-          bolsas[bolsaIndex].volumenDeLeucocitos=int.tryParse(element[indexVolumenDeLeucocitosIndex].toString()) ?? 0;
-          bolsas[bolsaIndex].volumenDePlaquetas=int.tryParse(element[indexVolumenDePlaquetasIndex].toString()) ?? 0;
-          bolsas[bolsaIndex].volumenDePlasma=int.tryParse(element[indexVolumenDePlasmaIndex].toString()) ?? 0;
-          bolsas[bolsaIndex].indiceDeRendimientoDePlaquetas=int.tryParse(element[indexIndiceDeRendimientoDePlaquetasIndex].toString()) ?? 0;
-          bolsas[bolsaIndex].codigoDeDonacion=element[indexCodigoDeDonacionIndex].toString();
-          bolsas[bolsaIndex].nombreAbreviado=element[indexNombreAbreviadoIndex].toString();
-          bolsas[bolsaIndex].numeroDeSerie=element[indexNumeroDeSerieIndex].toString();
+          if(element[indexContadoDeAlarmas].toString()!="0"){
+           List<AlarmAlert> newAlarm=fromString(element[indexContadoDeAlarmas].toString());
+            for (var alarm in newAlarm) {
+               alarmas.add(alarm);
+            }
+          }
+          if(element[indexContadoDeAlertas].toString()!="0"){
+            List<AlarmAlert> newAlert=fromString(element[indexContadoDeAlertas].toString());
+            for (var alert in newAlert) {
+               alertas.add(alert);
+            }
+          }
+          if(element[indexCodigoDeDonacionIndex].toString().isNotEmpty){
+          Bolsa b=Bolsa(
+            volumenDeLeucocitos:int.tryParse(element[indexVolumenDeLeucocitosIndex].toString()) ?? 0,
+            volumenDePlaquetas:int.tryParse(element[indexVolumenDePlaquetasIndex].toString()) ?? 0,
+            volumenDePlasma:int.tryParse(element[indexVolumenDePlasmaIndex].toString()) ?? 0,
+            indiceDeRendimientoDePlaquetas:int.tryParse(element[indexIndiceDeRendimientoDePlaquetasIndex].toString()) ?? 0,
+            codigoDeDonacion:element[indexCodigoDeDonacionIndex].toString(),
+            nombreAbreviado:indexNombreAbreviadoIndex!=-1? element[indexNombreAbreviadoIndex].toString():"",
+            numeroDeSerie:indexNumeroDeSerieIndex!= -1 ? element[indexNumeroDeSerieIndex].toString():"",
 
-
+          );
+          bolsas.add(b);
+          }
           volumenesDeLeucocitos.add(int.tryParse(element[indexVolumenDeLeucocitosIndex].toString()) ?? 0);
           volumenesDePlaquetas.add(int.tryParse(element[indexVolumenDePlaquetasIndex].toString()) ?? 0);
           volumenesDePlasma.add(int.tryParse(element[indexVolumenDePlasmaIndex].toString()) ?? 0);
           indicesDeRendimientoDePlaquetas.add(int.tryParse(element[indexIndiceDeRendimientoDePlaquetasIndex].toString()) ?? 0);
           var fecha=DateTime.parse( parseTime( element[indexHoraDeInicioDelProcesamientoIndex].toString()));
+          
           localCorrida= Corrida(
                 key: Key(idInicial.toString()),
                 id: idInicial.toString(),
@@ -229,249 +366,119 @@ class _DashBoardPageState extends State<DashBoardPage> {
                 month: fecha.month,
                 day: fecha.day,
                 fecha: fecha.toString(),
-                codigoDeOperador: element[indexCodigoDeOperadorIndex].toString(),
+                alarmas: List.generate(alarmas.length,(int index) => alarmas[index]),
+                alertas: List.generate(alertas.length,(int index) => alertas[index]),
+                codigoDeOperador: element[indexCodigoDeOperadorIndex].toString().isNotEmpty
+                  ? element[indexCodigoDeOperadorIndex].toString()
+                  : "No especificado",
                 nombreDeProtocolo: element[indexNombreDeProtocoloIndex].toString(),
                 codigoDeDonacion: element[indexCodigoDeDonacionIndex].toString(),
-                nombreAbreviado: element[indexNombreAbreviadoIndex].toString(),
-                numeroDeSerie: element[indexNumeroDeSerieIndex].toString(),
+                nombreAbreviado: indexNombreAbreviadoIndex!=-1? element[indexNombreAbreviadoIndex].toString():"",
+                numeroDeSerie: indexNumeroDeSerieIndex!=-1 ?element[indexNumeroDeSerieIndex].toString():"",
+                duracionDelProcedimiento: element[indexDuracionDelProcedimineto].toInt(),
                 volumenDeLeucocitos: element[indexVolumenDeLeucocitosIndex].toInt(),
                 volumenDePlaquetas: element[indexVolumenDePlaquetasIndex].toInt(),
                 volumenDePlasma: element[indexVolumenDePlasmaIndex].toInt(),
                 indiceDeRendimientoDePlaquetas: element[indexIndiceDeRendimientoDePlaquetasIndex].toInt(),
-                bolsas: bolsas,
+                bolsas: List.generate(bolsas.length,(int index)=> bolsas[index]),
               );
-            
-           
-       
-        
-        
-        
-       // }
-        
-       
-      }
-      procedimientosTotal=ptr;
+        }
+      }catch(e,s){
+          setState(() {
+            isError=true;
+            errorMsg="$e\n\r$s";
+          });
+
+        }
       setState(() {
         isLoading = false;
       });
     });
+  
   }
 
-
+  @override
+  void didUpdateWidget(covariant DashBoardPage oldWidget) {
+    if(oldWidget.option!=widget.option){
+      setState(() {
+        
+      });
+    }
+    super.didUpdateWidget(oldWidget);
+  }
+  
   @override
   Widget build(BuildContext context) {
-    procedimientosTotal=corridas.length;
-    int corridasProductivas=corridas.where((element) => element.codigoDeDonacion.isNotEmpty).length;
+ 
+    if (isError) {
+      return  Center(child: SizedBox(width: 400, height: 200, child: Text(errorMsg,maxLines: 30,)));
+    }
+    if (isLoading) {
+      return const Center(child: SizedBox(width: 200, height: 200, child: CircularProgressIndicator()));
+    }
+ 
     // This method is rerun every time setState is called, for instance as done
     // by the _incrementCounter method above.
     //
     // The Flutter framework has been optimized to make rerunning build methods
     // fast, so that you can just rebuild anything that needs updating rather
     // than having to individually change instances of widgets.
-    leucocitosTotal=0;
-    plaquetasTotal=0;
-    plasmaTotal=0;
-    for (var corrida in corridas) {
-      for (var bolsa in corrida.bolsas) {
-        leucocitosTotal += bolsa.volumenDeLeucocitos;
-        plaquetasTotal += bolsa.volumenDePlaquetas;
-        plasmaTotal += bolsa.volumenDePlasma;
-      }
-    }  
+   
     
     if (selectedEquipo != "Todos") {
       corridasToTrace = corridas.where((element) => element.numeroDeSerie == selectedEquipo).toList();
     } else {
       corridasToTrace = corridas;
     }
-    int leucocitosParcial=0;
-    int plaquetasParcial=0;
-    int plasmaParcial=0;
-    int procedimientosParcial=corridasToTrace.length;
-    for (var corrida in corridasToTrace) {
-      for (var bolsa in corrida.bolsas) {
-        leucocitosParcial += bolsa.volumenDeLeucocitos;
-        plaquetasParcial += bolsa.volumenDePlaquetas;
-        plasmaParcial += bolsa.volumenDePlasma;
-      }
-    }  
       
 
-    if (isLoading) {
-      return const Center(child: SizedBox(width: 200, height: 200, child: CircularProgressIndicator()));
-    }
     
-    List<SingleValueInfo> infoCards=[
-      SingleValueInfo(
-      title: "Operadores",
-      numOfFiles: operadores.length,
-      totalStorage: "",
-      color: Colors.blue,
-      percentage: 70,
-      icon: Icons.person,
-      unit: "Operadores",
-      drawer: PopupMenuItem(
-                child: Text("Ver Operadores"),
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: Text("Operadores"),
-                        content: SizedBox(
-                          width: double.maxFinite,
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: operadores.length,
-                            itemBuilder: (context, index) {
-                              return ListTile(
-                                title: Text(operadores[index]),
-                              );
-                            },
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: Text("Cerrar"),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                }),
-      ),
-      SingleValueInfo(
-        title: "Protocolos",
-        numOfFiles: protocolos.length,
-        totalStorage: "",
-        color: Colors.green,
-        percentage: 70,
-        icon: Icons.article_outlined,
-        unit: "Protocolos",
-        drawer:  PopupMenuItem(
-                child: Text("Ver Protocolos"),
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: Text("Protocolos"),
-                        content: SizedBox(
-                          width: double.maxFinite,
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            itemCount: protocolos.length,
-                            itemBuilder: (context, index) {
-                              return ListTile(
-                                title: Text(protocolos[index]),
-                              );
-                            },
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: Text("Cerrar"),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                }), 
-                
-            
-          
-        
-      ),
-      SingleValueInfo(
-        title: "Donaciones",
-        numOfFiles: donaciones.length,
-        totalStorage: "",
-        color: Colors.purple,
-        percentage: donaciones.length>0 ? ((donaciones.length/4) / procedimientosTotal * 100).toInt() : 0,
-        icon: Icons.bloodtype,
-        unit: "Donaciones",
-      ),
-      SingleValueInfo(
-        title: "Runs Totales",
-        numOfFiles: procedimientosParcial,
-        totalStorage: "${procedimientosParcial > 0 ? ((procedimientosParcial) / procedimientosTotal *100).toInt() : 0}%",
-        color: Colors.orange,
-        percentage: procedimientosParcial > 0 ? ((procedimientosParcial ) / procedimientosTotal * 100).toInt() : 0,
-        icon: Icons.settings_backup_restore,
-        unit: "Runs",
-      ),
-      
-
-      SingleValueInfo(
-        title: "Volumen de Plaquetas",
-        numOfFiles: plaquetasParcial,
-        totalStorage: "${plaquetasParcial > 0 ? ((plaquetasParcial ) / plaquetasTotal *100 ).toStringAsFixed(2) : 0}%",
-        color: Colors.white60,
-        percentage: plaquetasParcial > 0 ? ((plaquetasParcial ) / plaquetasTotal * 100).toInt() : 0,
-        icon: Icons.bubble_chart,
-        unit: "ml",
-      ),   
-      SingleValueInfo(
-        title: "Volumen de plasma",
-        numOfFiles: plasmaParcial,
-        totalStorage: "${plasmaParcial > 0 ? ((plasmaParcial) / plasmaTotal *100).toStringAsFixed(2) : 0}%",
-        color: const Color.fromARGB(255, 146, 175, 41),
-        percentage: plasmaParcial > 0 ? ((plasmaParcial ) / plasmaTotal * 100).toInt() : 0,
-        icon: Icons.bubble_chart,
-        unit: "ml",
-      ),   
-      SingleValueInfo(
-        title: "Volumen de Leucocitos",
-        numOfFiles: leucocitosParcial,
-        totalStorage: "${leucocitosParcial > 0 ? ((leucocitosParcial) / leucocitosTotal *100).toStringAsFixed(2) : 0}%",
-        color: Colors.red,
-        percentage: leucocitosParcial > 0 ? ((leucocitosParcial ) / leucocitosTotal * 100).toInt() : 0,
-        icon: Icons.bubble_chart,
-        unit: "ml",
-      ),   
-      SingleValueInfo(
-      title: "Tasa de Productividad",
-      numOfFiles: procedimientosTotal > 0 ? (corridasProductivas / procedimientosTotal * 100).toInt() : 0,
-      totalStorage: "Runs",
-      color: Colors.green,
-      percentage: procedimientosTotal > 0 ? (corridasProductivas / procedimientosTotal * 100).toInt() : 0,
-      icon: Icons.bar_chart,
-      unit: "%",
-    ),
-    ];
     return SafeArea(
       child: SingleChildScrollView(
         primary: false,
         padding: EdgeInsets.all(defaultPadding),
         child: Column(
           children: [
-            //Header(),
+            Header(actualSelection: selectedEquipo,equipos: ["Todos", ...numerosDeSerie], onEquipoChanged: (String equipo) {
+              setState(() {
+                selectedEquipo = equipo;
+              });
+            }),
             SizedBox(height: defaultPadding),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   flex: 5,
-                  child: Column(
+                  child: Column(  // CUERPO PRENCIPAL
                     children: [
-                      ValueInfoWidget(actualSelection: selectedEquipo, infoValues: infoCards,equipos: ["Todos", ...numerosDeSerie], onEquipoChanged: (String equipo) {
-                        setState(() {
-                          selectedEquipo = equipo;
-                        });
-                      }),
+                      widget.option==0
+                        ? ValueInfoWidget(corridas: corridasToTrace,corridasTotales: corridas,)
+                        : widget.option==1 
+                          ? TendencyWidget(corridas: corridasToTrace)
+                          : widget.option==2
+                            ? ProtocolsVsCompWidget(corridas: corridasToTrace) 
+                            : widget.option==3
+                              ? AlertChartWidget(corridas:corridasToTrace)
+                              : widget.option==4
+                              ? UsersChartwidget (corridas:corridasToTrace)
+                              : CustomChartwidget(corridas:corridasToTrace), //1° ROW DEL CUERPO PRINCIPAL
                       SizedBox(height: defaultPadding),
-                      MonthlyResultCard(corridas: corridasToTrace),
-                      SizedBox(height: defaultPadding),
-                      ComponenteResultCard(corridas: corridasToTrace),
+                      widget.option==0
+                        ? MonthlyResultCard(corridas: corridasToTrace)
+                        : widget.option==1 
+                          ? ComponenteResultCard(corridas: corridasToTrace)
+                          : widget.option==2 
+                            ? ComponenteResultCard(corridas: corridasToTrace)
+                            : widget.option==3 
+                              ? AlarmChartWidget (corridas: corridasToTrace)
+                              :widget.option==4 
+                              ? AlarmChartWidget (corridas: corridasToTrace)
+                              : SizedBox(),  //2° ROW DEL CUERPO PRINCIPAL
                       if (Responsive.isMobile(context))
                         SizedBox(height: defaultPadding),
-                      if (Responsive.isMobile(context)) StorageDetails(corridas: corridasToTrace),
+                      if (Responsive.isMobile(context)) 
+                       lateralWidget(widget.option, corridasToTrace),
                     ],
                   ),
                 ),
@@ -481,8 +488,9 @@ class _DashBoardPageState extends State<DashBoardPage> {
                 if (!Responsive.isMobile(context))
                   Expanded(
                     flex: 2,
-                    child: StorageDetails(corridas: corridasToTrace),
-                  ),
+                    child: lateralWidget(widget.option, corridasToTrace)
+                 
+                  ),                // COLUMNA LATERAL
               ],
             )
           ],
@@ -492,139 +500,6 @@ class _DashBoardPageState extends State<DashBoardPage> {
   }
 }
 
-class Variable {
-  String name;
-  int max;
-  int min;
-  String reference;
-  bool selected = false;
-  bool isAnotation = false;
-
-  Variable(this.name, this.max, this.min, this.reference, this.selected, this.isAnotation);
-}
-
-class VariableItem extends StatelessWidget {
-  final Variable actor;
-  final VoidCallback? onTap;
-  final VoidCallback? onClear;
-  final bool disabled;
-  final Color? color;
-  const VariableItem({super.key, required this.actor, this.onTap, this.disabled = false, this.color, this.onClear});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(2.0),
-      child: Container(
-        alignment: Alignment.centerLeft,
-        height: 36,
-        width: 280,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          border: BoxBorder.all(color: color ?? Colors.transparent),
-        ),
-
-        //decoration: BoxDecoration(color: disabled ? const Color.fromARGB(255, 116, 108, 108) : Colors.grey[200], borderRadius: BorderRadius.circular(10)),
-        child: GestureDetector(
-          onTap: () {
-            if (!disabled) {
-              if (actor.isAnotation) {
-                if (!actor.selected) {
-                  onTap?.call();
-                } else {
-                  showAdaptiveDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: SizedBox(
-                          width: 280,
-                          child: Text("These types of variables cannot be deleted individually because they are annotations. You can delete all the ones you have already selected by pressing 'CLEAR'.",
-                            style: TextStyle(fontSize: 14),
-                            maxLines: 4,
-                          )
-                          ),
-                        actions: [
-                          OutlinedButton(
-                            onPressed: () {
-                              if (onClear != null) {
-                                onClear!.call();
-                                Navigator.of(context).pop();
-                              }
-                            },
-                            child: Text("CLEAR"),
-                          ),
-                          OutlinedButton(
-                            onPressed: () {
-                                Navigator.of(context).pop();
-                            },
-                            child: Text("CANCEL"),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                }
-              } else {
-                onTap?.call();
-              }
-            }
-          },
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              SizedBox(width: 6),
-              Icon(Icons.circle, color: color ?? Colors.transparent, size: 12),
-              SizedBox(width: 6),
-              Tooltip(
-                preferBelow: false,
-                margin: EdgeInsets.only(right: 290),
-                verticalOffset: -30,
-
-                message: actor.name,
-                child: Text(actor.name, style: const TextStyle(fontSize: 12, overflow: TextOverflow.ellipsis)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class VisitorGrowthProgressBar extends StatelessWidget {
-  const VisitorGrowthProgressBar({
-    super.key,
-    required this.title,
-    required this.subTitle,
-    required this.progress,
-    required this.color,
-  });
-
-  final String title;
-  final String subTitle;
-  final double progress;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      spacing: 2,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [Text(title), Text( subTitle)],
-        ),
-        LinearProgressIndicator(
-          value: progress,
-          backgroundColor: Colors.grey[400],
-          valueColor: AlwaysStoppedAnimation<Color>(color),
-          minHeight: 8,
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ],
-    );
-  }
-}
 
 
 enum StatStatus { ascending, descending }
@@ -706,148 +581,23 @@ class StatCard extends StatelessWidget {
     );
   }
 }
-
-class BorderedContainer extends StatelessWidget {
-  final Widget child;
-  final Color? borderColor;
-  final Color? color;
-  final EdgeInsetsGeometry? padding;
-  final EdgeInsetsGeometry? margin;
-  final double? width;
-  final double? height;
-  final AlignmentGeometry? alignment;
-  final BoxConstraints? constraints;
-  final double? borderRadius;
-
-  const BorderedContainer({
-    super.key,
-    required this.child,
-    this.borderColor,
-    this.padding,
-    this.margin,
-    this.width,
-    this.height,
-    this.alignment,
-    this.constraints,
-    this.borderRadius,
-    this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: key,
-      width: width,
-      height: height,
-      padding: padding,
-      margin: margin,
-      alignment: alignment,
-      constraints: constraints,
-      decoration: BoxDecoration(
-        color: color,
-        border: Border.all(color: borderColor ?? Colors.grey.withValues(alpha: 0.25)),
-        borderRadius: BorderRadius.circular(borderRadius ?? 12),
-      ),
-      child: child,
-    );
-  }
-}
-
-class UserStatisticsWidget extends StatefulWidget {
-  const UserStatisticsWidget({
-    super.key,
-    required this.listEquipment,
-    required this.percent,
-    required this.legend,
-    required this.total,
-    
-
-  });
-
-  final bool listEquipment;
-  final double percent;
-  final String legend;
-  final int total;
-  @override
-  State<StatefulWidget> createState() => _UserStatisticsWidget();
-}
-
-class _UserStatisticsWidget extends State<UserStatisticsWidget> {
-  int touchedIndex = -1;
-
-  @override
-  Widget build(BuildContext context) {
-    
-    double radio= MediaQuery.of(context).size.width*0.050;
-    return SizedBox(
-      child: 
-      Column(
-                  children: [
-                    const SizedBox(
-                      height: 18,
-                    ),
-                    Text(widget.total.toString(),
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                       
-                      ),
-                    ),
-                    AspectRatio(
-                      aspectRatio: 1.4,
-                      child: Row(
-                        children: <Widget>[
-                          
-                          Expanded(
-                            child: AspectRatio(
-                              aspectRatio: 1.4,
-                              child: 
-                                Stack(
-                                  alignment: AlignmentGeometry.center,
-                                  children: [
-                                    CircularPercentIndicator(
-                                  lineWidth: 34,
-                                  radius: radio,
-                                  percent: 1*((360-60)/360),
-                                  startAngle: 210,
-                                  progressColor: const Color.fromARGB(104, 158, 158, 158),
-                                  animation: false,
-                                  backgroundColor: Colors.transparent,
-                                  addAutomaticKeepAlive: false,
-                                     footer: Text(widget.legend),
-                                   circularStrokeCap: CircularStrokeCap.round,
-                                  ),
-                               
-                                    CircularPercentIndicator(
-                                      lineWidth: 34,
-                                      radius: radio,
-                                      percent: widget.percent *((360-60)/360),
-                                      startAngle: 210,
-                                      animation: true,
-                                      center: Text("${(widget.percent * 100).toStringAsFixed(1)} %",
-                                      style:  TextStyle(
-                                        fontSize: radio*0.25,
-                                        fontWeight: FontWeight.bold,
-                                      ),),
-                                     footer: Text(widget.legend),
-                                      animationDuration: 500,
-                                      backgroundColor: Colors.transparent,
-                                      addAutomaticKeepAlive: false,
-                                      circularStrokeCap: CircularStrokeCap.round,
-                                                                      ),
-                                  ],
-                                ),
-                               ),
-                              ),
-                         
-                          
-                        ],
-                      ),
-                    ),
-               
-                
-              ])
-        
-    );
-  }
+Widget lateralWidget(int option, List<Corrida> corridasToTrace){
+  return option==0 //DASH
+      ? RunsBagsWidget(corridas: corridasToTrace)
+      : option==1 //Componentes
+      ? ProtocolsDistributionWidget(corridas: corridasToTrace)
+      : option==2 //Protocolos
+      ? ProtocolsDistributionWidget(corridas: corridasToTrace)
+      : option==3 //Alarmas
+      ? Column(   
+        children: [
+          AlertPieWidget(corridas:corridasToTrace),
+          SizedBox(height: defaultPadding),
+          AlarmPieWidget(corridas:corridasToTrace),
+        ],
+      )
+      :  option==4 //Users
+      ? UsersDistributionWidget(corridas: corridasToTrace)
+      : SizedBox()
+    ; 
 }

@@ -12,6 +12,14 @@ import 'package:flutter/material.dart';
 /// Usage:
 ///   import 'line_colors.dart';
 ///   final c = lineColors[index % lineColors.length];
+/// 
+const Color colorDePlasma=Color.fromARGB(255, 230, 230, 108);
+const Color colorDePlaquetas=Color.fromARGB(255, 232, 232, 200);
+const Color colorDeLeuco=Color.fromARGB(255, 185, 41, 41);
+const Color colorDerendimiento=Color.fromARGB(255, 137, 180, 31);
+
+
+
  const List<Color> lineColors = <Color>[
   Color(0xFF000000 | ((1103515245 * 0 + 12345) & 0x00FFFFFF)),
    Color(0xFF000000 | ((1103515245 * 1 + 12345) & 0x00FFFFFF)),

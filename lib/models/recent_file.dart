@@ -1,6 +1,10 @@
-class RecentFile {
-  final String? icon, title, max, min, avr;
+import 'package:flutter/material.dart';
 
-  RecentFile({this.icon, this.title, this.max, this.min, this.avr});
+class RecentFile {
+  final String?  title, max, min, avr;
+  final IconData? icon;
+  final Color? color;
+
+  RecentFile({this.icon, this.title, this.max, this.min, this.avr,this.color});
 }
 
